@@ -1,0 +1,22 @@
+faiss:
+  collection_name: "document-portal"
+
+embedding_model:
+  provider: "google"
+  model_name: "models/text-embedding-004"
+
+retriever:
+  top_k: 4
+
+llm:
+  groq:
+    provider: "groq"
+    model_name: "qwen/qwen3-32b"
+    temperature: 0
+    max_output_tokens: 2048
+
+  google:
+    provider: "google"
+    model_name: "gemini-2.0-flash"
+    temperature: 0
+    max_output_tokens: 2048
