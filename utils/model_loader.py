@@ -26,7 +26,7 @@ class ModelLoader:
 
     def _vaildate_env(self):
         """
-        Validate necessary enironment variables.
+        Validate necessary environment variables.
         Ensure API keys exist
         """
         required_vars = ["GROQ_API_KEY","GOOGLE_API_KEY"]
