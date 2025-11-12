@@ -1,4 +1,4 @@
-# test.py code for document_analysis
+# # test.py code for document_analysis
 
 # from pathlib import Path
 # from src.document_analyzer.data_ingestion import DocumentHandler
@@ -46,46 +46,95 @@
 # if __name__ == "__main__":
 #     main()
 
-# test.py code for document_comparison
+# # test.py code for document_comparison
 
-import io
-from pathlib import Path
-from src.document_compare.data_ingestion import DocumentIngestion
-from src.document_compare.document_comparator import DocumentCompareLM
+# import io
+# from pathlib import Path
+# from src.document_compare.data_ingestion import DocumentIngestion
+# from src.document_compare.document_comparator import DocumentCompareLM
 
 
-def load_fake_uploaded_file(filepath:Path):
-    return io.BytesIO(filepath.read_bytes())
+# def load_fake_uploaded_file(filepath:Path):
+#     return io.BytesIO(filepath.read_bytes())
 
-def test_document_compare():
-    act_path = Path("D:\\Document-Portal\\data\\document_compare\\report-1.pdf")
-    ref_path = Path("D:\\Document-Portal\\data\\document_compare\\report-2.pdf")
+# def test_document_compare():
+#     act_path = Path("D:\\Document-Portal\\data\\document_compare\\report-1.pdf")
+#     ref_path = Path("D:\\Document-Portal\\data\\document_compare\\report-2.pdf")
 
-    class FakeUpload:
+#     class FakeUpload:
 
-        def __init__(self,file_path:Path):
-            self.name = file_path.name
-            self._buffer = file_path.read_bytes()
+#         def __init__(self,file_path:Path):
+#             self.name = file_path.name
+#             self._buffer = file_path.read_bytes()
 
-        def get_buffer(self):
-            return self._buffer
+#         def get_buffer(self):
+#             return self._buffer
         
-    document_ingest = DocumentIngestion()
-    ref_upload = FakeUpload(ref_path)
-    act_upload = FakeUpload(act_path)
+#     document_ingest = DocumentIngestion()
+#     ref_upload = FakeUpload(ref_path)
+#     act_upload = FakeUpload(act_path)
 
-    ref_file, act_file = document_ingest.save_uploaded_files(ref_upload,act_upload)
-    combined_text = document_ingest.combine_documents()
-    document_ingest.clean_old_sessions(keep_latest=3)
+#     ref_file, act_file = document_ingest.save_uploaded_files(ref_upload,act_upload)
+#     combined_text = document_ingest.combine_documents()
+#     document_ingest.clean_old_sessions(keep_latest=3)
 
-    print("\n Combined text preview(First 1000 chars):\n")
-    print(combined_text[:1000])
+#     print("\n Combined text preview(First 1000 chars):\n")
+#     print(combined_text[:1000])
 
-    llm_comparator = DocumentCompareLM()
-    compare_df = llm_comparator.compare_document(combined_text)
+#     llm_comparator = DocumentCompareLM()
+#     compare_df = llm_comparator.compare_document(combined_text)
 
-    print("\n=== COMPARISON RESULT ===")
-    print(compare_df.head())
+#     print("\n=== COMPARISON RESULT ===")
+#     print(compare_df.head())
 
-if __name__ == "__main__":
-    test_document_compare()
+# if __name__ == "__main__":
+#     test_document_compare()
+
+
+
+# Testing code for single document chat 
+
+import sys
+from pathlib import Path
+from langchain_community.vectorstores import FAISS
+from src.single_document_chat.data_ingestion import SingleDocIngestor
+from src.single_document_chat.retrieval import ConversationalRAG
+from utils.model_loader import ModelLoader
+FAISS_INDEX_PATH = Path("faiss_index")
+def test_conversational_rag_on_pdf(pdf_path:str, question:str):
+    try:
+        model_loader = ModelLoader()
+
+        if FAISS_INDEX_PATH.exists():
+            print("Loading existing FAISS index...")
+            embedding = model_loader.load_embedding()
+            vector_store = FAISS.load_local(folder_path=str(FAISS_INDEX_PATH), embeddings=embedding, allow_dangerous_deserialization=True)
+            retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k":5})
+
+        else:
+            print("FAISS index not found. Ingesting PDF and creating index...")
+            with open(pdf_path,"rb") as f:
+                uploaded_files = [f]
+                ingestor = SingleDocIngestor()
+                retriever = ingestor.ingest_files(uploaded_files)
+        
+        print("Running Conversational RAG")
+        session_id ="test_conversational_rag"
+        rag = ConversationalRAG(session_id=session_id, retriever=retriever)
+
+        response = rag.invoke(question)
+        print(f"\nQuestion: {question} \nAnswer: {response}")
+
+    except Exception as e:
+        print(f"Test failed : {e}")
+        sys.exit(1)
+
+if __name__ =="__main__":
+    pdf_path = r"D:\\Document-Portal\\data\\single_document_chat\\NIPS-2017-attention-is-all-you-need-Paper.pdf"
+    question="What is the main topic in this document?"
+
+    if not Path(pdf_path).exists():
+        print(f"PDF file doesnot exits at {pdf_path}")
+        sys.exit(1)
+
+    test_conversational_rag_on_pdf(pdf_path,question)
