@@ -34,7 +34,7 @@ class ConversationalRAG:
 
         except Exception as e:
             self.log.error("Failed to initialize ConversationalRAG", error = str(e))
-            raise DocumentPortalException("Initialization error in ConversationalRAG")
+            raise DocumentPortalException("Initialization error in ConversationalRAG",sys)
 
     def load_retriever_from_faiss(self, index_path):
         """Load a FAISS vectorstore from disk and convert to retriever"""
@@ -53,13 +53,13 @@ class ConversationalRAG:
         
         except Exception as e:
             self.log.error("Failed to retriever from FAISS ", error = str(e))
-            raise DocumentPortalException("Loading error in ConversationalRAG")
+            raise DocumentPortalException("Loading error in ConversationalRAG",sys)
         
     def invoke(self, user_input: str, chat_history: Optional[List[BaseMessage]] = None)-> str:
         try:
            chat_history = chat_history or []
            payload = {
-                "user_input": user_input,
+                "input": user_input,
                 "chat_history": chat_history
                }
            answer = self.chain.invoke(payload)
@@ -75,7 +75,7 @@ class ConversationalRAG:
            return answer
         except Exception as e:
             self.log.error("Failed to invoke LLM", error = str(e))
-            raise DocumentPortalException("Invocation error in ConversationalRAG")
+            raise DocumentPortalException("Invocation error in ConversationalRAG",sys)
 
     def _load_llm(self):
         try:
@@ -86,7 +86,7 @@ class ConversationalRAG:
             return llm
         except Exception as e:
             self.log.error("Failed to load LLM", error = str(e))
-            raise DocumentPortalException("LLM loading error in ConversationalRAG")
+            raise DocumentPortalException("LLM loading error in ConversationalRAG",sys)
 
     @staticmethod
     def _format_docs(docs):
@@ -98,10 +98,10 @@ class ConversationalRAG:
                 {"input":itemgetter("input"),"chat_history":itemgetter("chat_history")}
                 |self.contextualize_prompt
                 |self.llm
-                |StrOutputParser
+                |StrOutputParser()
                 )
             
-            retrieve_docs = self.retriever | self._format_docs
+            retrieve_docs = question_rewriter | self.retriever | self._format_docs
             
             self.chain = (
                 {
@@ -116,4 +116,4 @@ class ConversationalRAG:
             self.log.info("LCEL chain built successfully", session_id = self.session_id)
         except Exception as e:
             self.log.error("Failed to build LCEL chain", error = str(e))
-            raise DocumentPortalException("Chain building error in ConversationalRAG")
+            raise DocumentPortalException("Chain building error in ConversationalRAG",sys)

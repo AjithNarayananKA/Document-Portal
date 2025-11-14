@@ -150,10 +150,10 @@ from src.multi_document_chat.retrieval import ConversationalRAG
 def test_document_ingestion_and_rag():
     try:
         test_files = [
-            "data\multi_doc_chat\market_analysis_report.docx",
-            "data\multi_doc_chat\NIPS-2017-attention-is-all-you-need-Paper.pdf",
-            "data\multi_doc_chat\sample.pdf",
-            "data\multi_doc_chat\state_of_the_union.txt"
+            "data\\multi_doc_chat\\market_analysis_report.docx",
+            "data\\multi_doc_chat\\NIPS-2017-attention-is-all-you-need-Paper.pdf",
+            "data\\multi_doc_chat\\sample.pdf",
+            "data\\multi_doc_chat\\state_of_the_union.txt"
         ]
 
         uploaded_files = []
@@ -166,7 +166,10 @@ def test_document_ingestion_and_rag():
 
         ingestor = DocumentIngestor()
         retriever = ingestor.ingest_files(uploaded_files)
-
+        
+        for f in uploaded_files:
+            f.close()
+            
         session_id ="test_multi_doc_rag"
         rag = ConversationalRAG(session_id=session_id, retriever=retriever)
         question= "what is attention all you need paper about ?"
@@ -174,7 +177,10 @@ def test_document_ingestion_and_rag():
 
         print("\n Question:",question)
         print("Answer:", answer)
-        
+
     except Exception as e:
         print(f"Test failed: {str(e)}")
         sys.exit(1)
+
+if __name__ == "__main__":
+    test_document_ingestion_and_rag()
