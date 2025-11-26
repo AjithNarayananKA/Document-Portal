@@ -169,10 +169,10 @@ def test_document_ingestion_and_rag():
         
         for f in uploaded_files:
             f.close()
-            
+
         session_id ="test_multi_doc_rag"
         rag = ConversationalRAG(session_id=session_id, retriever=retriever)
-        question= "what is attention all you need paper about ?"
+        question= "what is President Zelensky said in their speech in parliament ?"
         answer = rag.invoke(question)
 
         print("\n Question:",question)
