@@ -79,6 +79,7 @@ async def compare_document(reference : UploadFile = File(...), actual : UploadFi
     try:
         doc_comparator = DocumentComparator()
         ref_path, act_path = doc_comparator.save_uploaded_files(FastAPIFileAdapter(reference), FastAPIFileAdapter(actual))
+        _ = ref_path, act_path
         combined_text = doc_comparator.combine_documents()
         doc_compare = DocumentCompareLM()
         result = doc_compare.compare_document(combined_text)
