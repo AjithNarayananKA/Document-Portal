@@ -121,18 +121,76 @@ class DocHandler:
             return "\n".join(chunks)
         except Exception as e:
             self.log.error("Error reading PDF", error= str(e), session_id =self.session_id)
-            raise DocumentPortalException(f"Failed to read PDF: {str(e)}", e1) from e
+            raise DocumentPortalException(f"Failed to read PDF: {str(e)}", e) from e
 class DocumentComparator:
-    def __init__(self):
-        pass
-    def save_uploaded_files(self):
-        pass
-    def read_pdf(self):
-        pass
-    def combine_documents(self):
-        pass
-    def clean_old_sessions(self):
-        pass
+    def __init__(self, base_dir :str = "data/document_compare", session_id : Optional[str] = None ):
+        self.log = CustomLogger().get_Logger(__name__)
+        self.base_dir = Path(base_dir)
+        
+        self.session_id = session_id or _session_id()
+        self.session_dir = self.base_dir / self.session_id
+        self.session_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.log.info("DocumentComparator initialized successfully.", session_id =str( self.session_id))
+        
+    def save_uploaded_files(self,ref_file:str, act_file:str):
+        try:
+            ref = os.path.basename(ref_file)
+            act = os.path.basename(act_file)
+            ref_path = os.path.join(self.session_dir, ref)
+            act_path = os.path.join(self.session_dir, act)
+            for fileobject , save_path in ((ref_file, ref_path), (act_file,act_path)):
+                if not fileobject.lower().endswith(".pdf"):
+                    raise ValueError("Invalid format. Upload PDF file.")
+                with open(save_path, "wb") as f:
+                    if hasattr(fileobject, "read"):
+                        f.write(fileobject.read())
+                    else:
+                        f.write(fileobject.get_buffer())
+            self.log.info("PDF files saved successfully", reference = str(ref_path), actual = str(act_path), session_id = self.session_id)
+            return ref_path, act_path
+        except Exception as e:
+            self.log.error("Error saving PDF files.", error=str(e), session_id = self.session_id)
+            raise DocumentPortalException(f"Failed to save PDF files: {str(e)}", e) from e
+    def read_pdf(self, pdf_path: str):
+        try:
+            with fitz.open(pdf_path) as f:
+                if f.is_encrypted():
+                    raise ValueError(f"PDF is encrypted:{pdf_path.name}")
+                chunks = []
+                for page_num in range(f.page_count):
+                    page = f.load_page(page_num)
+                    text = page.get_text()
+                    if text.strip():
+                        chunks.append(f"\n--Page{page_num+1}--\n{text}")
+                    
+            self.log.info("Successfully read PDF", pdf_path = str(pdf_path), session_id = self.session_id)
+            return "\n".join(chunks)
+        
+        except Exception as e:
+            self.log.error("Error reading PDF files.", error=str(e), session_id = self.session_id)
+            raise DocumentPortalException(f"Failed to read PDF files: {str(e)}", e) from e
+    def combine_documents(self)-> str:
+        try:
+            docs_part =[]
+            for fileobject in sorted(self.session_dir.iterdir()):
+                if fileobject.is_file() and fileobject.suffix.lower() == ".pdf":
+                    content = self.read_pdf(fileobject)
+                    docs_part.append(f"Document:{fileobject.name}\n{content}")
+            self.log.info("Successfully combined documents", page_count = len(docs_part) , session_id = self.session_id)
+            return "\n".join(docs_part)
+        except Exception as e:
+            self.log.error("Error combining PDF files.", error=str(e), session_id = self.session_id)
+            raise DocumentPortalException(f"Failed to combine PDF files: {str(e)}", e) from e
+    def clean_old_sessions(self, keep_latest: int = 3):
+        try:
+            sessions = sorted([f for f in self.base_dir.iterdir() if f.is_dir()], reverse=True)
+            for folder in sessions[keep_latest]:
+                shutil.rmtree(folder, ignore_errors=True)
+                self.log.info("Old session folder deleted", path =str(folder))
+        except Exception as e:
+            self.log.error("Error in cleaning old sessions.", error=str(e), session_id = self.session_id)
+            raise DocumentPortalException(f"Failed to clean old sessions: {str(e)}", e) from e
 class ChatIngestor:
     def __init__(self):
         pass
