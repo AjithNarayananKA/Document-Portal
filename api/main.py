@@ -22,6 +22,9 @@ from src.document_compare.document_comparator import DocumentCompareLM
 from src.document_chat.retrieval import ConversationalRAG
 # BASE_DIR = Path(__file__).resolve().parent.parent
 
+FAISS_BASE = os.getenv("FAISS_BASE","fiass_index")
+UPLOAD_BASE = os.getenv("UPLOAD_BASE","data")
+
 app = FastAPI(title=" Document Portal API", version="0.1")
 
 app.add_middleware(
@@ -55,7 +58,10 @@ class FastAPIFileAdapter:
 def read_pdf_via_handler(handler:DocHandler, path:str)-> Any:
     """Helper function to read PDF using DocHandler"""
     try:
-        pass
+        if hasattr(handler, "read_pdf"):
+            return handler.read_pdf(path)
+        if hasattr(handler, "read_"):
+            return handler.read_(path)
     except Exception as e:
         raise HTTPException(status_code=500, detail =f"Error reading PDF:{str(e)}") 
 
