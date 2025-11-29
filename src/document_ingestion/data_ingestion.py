@@ -192,11 +192,72 @@ class DocumentComparator:
             self.log.error("Error in cleaning old sessions.", error=str(e), session_id = self.session_id)
             raise DocumentPortalException(f"Failed to clean old sessions: {str(e)}", e) from e
 class ChatIngestor:
-    def __init__(self):
-        pass
-    def _resolve_dir(self):
-        pass
-    def _split(self):
-        pass
-    def build_retriever(self):
-        pass
+    def __init__(self,
+        temp_base:str ='data',
+        faiss_base:str = "faiss_index",
+        use_session_dir : bool = True,
+        session_id : Optional[str] = None
+        ):
+        try:
+            self.log = CustomLogger().get_Logger(__name__)
+            self.model_loader = ModelLoader()
+            
+            
+            self.temp_base = Path(temp_base); self.temp_base.mkdir(parents=True, exist_ok=True)
+            self.faiss_base = Path(faiss_base); self.faiss_base.mkdir(parents=True, exist_ok=True)
+            
+            self.use_session = use_session_dir
+            self.session_id = session_id or _session_id()
+            
+            self.temp_dir = self._resolve_dir(self.temp_base)
+            self.faiss_dir  = self._resolve_dir(self.faiss_base) 
+            
+            self.log.info(
+                "ChatIngestor initialized.",
+                session_id = str(self.session_id),
+                temp_dir = str(self.temp_dir),
+                faiss_dir = str(self.faiss_dir),
+                sessionized = self.use_session
+            )
+        except Exception as e:
+            self.log.error("Error initializing ChatIngestor",error=str(e))
+            raise DocumentPortalException(f"Failed to initialize ChatIngestor:{str(e)}", e) from e
+    def _resolve_dir(self, base:Path):
+        if self.use_session :
+            d = base / self.session_id
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+        return base
+    def _split(self, docs: List[Document], chunk_size = 1000, chunk_overlap = 200)-> List[Document]:
+        splitter = RecursiveCharacterTextSplitter(chunk_size = chunk_size, chunk_overlap = chunk_overlap)
+        chunks = splitter.split_documents(docs)
+        self.log.info("Document splitted", chunks = len(chunks), chunk_size = chunk_size, overlap = chunk_overlap)
+        return chunks
+    def build_retriever(self,
+        upload_files: Iterable,
+        *,
+        chunk_size: int = 1000,
+        chunk_overlap:int = 200,
+        k: int = 3   
+        ):
+        try:
+            paths = save_uploaded_files(upload_files, self.temp_dir)
+            docs = load_documents(paths)
+            if not docs:
+                raise ValueError("No valid documents loaded")
+            chunks = self._split(docs, chunk_size= chunk_size, chunk_overlap= chunk_overlap)
+            fm = FaissManager(self.faiss_dir,self.model_loader)
+            
+            text = [c.page_content for c in chunks]
+            metadata = [c.metadata for c in chunks]
+            try:
+                vs = fm.load_or_create(text = text, metadata = metadata)
+            except Exception:
+                vs = fm.load_or_create(text = text, metadata = metadata)
+            added = fm.add_documents(chunks)
+            self.log.info("FAISS index updated", added = added, index = str(self.faiss_dir))
+            return vs.as_retriever(search_type = 'similarity', search_kwargs = {"k":k})
+        
+        except Exception as e:
+            self.log.error("Error building retriever", error = str(e))
+            raise DocumentPortalException(f" Failed to build retriever: {str(e)}", e) from e
