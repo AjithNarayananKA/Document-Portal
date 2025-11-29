@@ -77,7 +77,7 @@ class FaissManager:
             self._save_meta()
             return len(new_docs)
         
-    def load_or_create(self, text:Optional[List[str]]=None, metadata:Optional[List[Dict]]=None):
+    def load_or_create(self, texts:Optional[List[str]]=None, metadatas:Optional[List[Dict]]=None):
         if self._exists():
             self.vector_store = FAISS.load_local(
                 str(self.index_dir),
@@ -85,6 +85,11 @@ class FaissManager:
                 allow_dangerous_deserialization= True
             )
             return self.vector_store
+        if not texts:
+            raise DocumentPortalException("No existing FAISS index and no data to create", sys)
+        self.vs = FAISS.from_texts(texts=texts, embedding=self.embedding, metadatas= metadatas or [])
+        self.vs.save_local(str(self.index_dir))
+        return self.vs
 class DocHandler:
     def __init__(self,data_dir: Optional[str]=None, session_id:Optional[str]=None):
         self.log = CustomLogger().get_Logger(__name__)
@@ -251,9 +256,9 @@ class ChatIngestor:
             text = [c.page_content for c in chunks]
             metadata = [c.metadata for c in chunks]
             try:
-                vs = fm.load_or_create(text = text, metadata = metadata)
+                vs = fm.load_or_create(texts = text, metadatas = metadata)
             except Exception:
-                vs = fm.load_or_create(text = text, metadata = metadata)
+                vs = fm.load_or_create(texts = text, metadatas = metadata)
             added = fm.add_documents(chunks)
             self.log.info("FAISS index updated", added = added, index = str(self.faiss_dir))
             return vs.as_retriever(search_type = 'similarity', search_kwargs = {"k":k})
