@@ -77,7 +77,7 @@ class FaissManager:
             self._save_meta()
             return len(new_docs)
         
-    def load_or_create(self):
+    def load_or_create(self, text:Optional[List[str]]=None, metadata:Optional[List[Dict]]=None):
         if self._exists():
             self.vector_store = FAISS.load_local(
                 str(self.index_dir),
